@@ -1,22 +1,25 @@
 /* jshint expr:true */
 import Ember from 'ember';
-import DS from 'ember-data';
-import { it } from 'ember-mocha';
+import { it, setupModelTest } from 'ember-mocha';
 import { describe, beforeEach } from 'mocha';
 import { expect } from 'chai';
 import Buffer from 'ember-validated-form-buffer/buffer';
+
+const { Object: EmberObject, Evented, A, makeArray, run } = Ember;
 
 describe('Buffer', () => {
   let buffer;
   let content;
 
+  setupModelTest('user');
+
   beforeEach(() => {
-    content = Ember.Object.extend(Ember.Evented, {
+    content = EmberObject.extend(Evented, {
       init() {
         this._super();
-        this.set('validations', Ember.Object.create({
-          errors: Ember.A(),
-          attrs:  Ember.Object.create()
+        this.set('validations', EmberObject.create({
+          errors: A(),
+          attrs: EmberObject.create()
         }));
       }
     }).create();
@@ -29,7 +32,7 @@ describe('Buffer', () => {
     });
 
     it('contains the client errors', () => {
-      buffer.set('clientErrors', Ember.Object.create({
+      buffer.set('clientErrors', EmberObject.create({
         attr: ['invalid']
       }));
 
@@ -37,7 +40,7 @@ describe('Buffer', () => {
     });
 
     it('merges API errors with the client errors', () => {
-      buffer.set('clientErrors', Ember.Object.create({
+      buffer.set('clientErrors', EmberObject.create({
         attr: ['invalid']
       }));
       buffer.set('apiErrors', [
@@ -50,7 +53,7 @@ describe('Buffer', () => {
     });
 
     it('does not merge blacklisted API errors', () => {
-      buffer.set('clientErrors', Ember.Object.create({
+      buffer.set('clientErrors', EmberObject.create({
         attr: ['invalid']
       }));
       buffer.set('apiErrors', [
@@ -82,10 +85,8 @@ describe('Buffer', () => {
 
   describe('apiErrors', () => {
     describe('when the content is a DS.Model', () => {
-      beforeEach(() => {
-        content = DS.Model.extend({
-          attr: DS.attr()
-        })._create();
+      beforeEach(function() {
+        content = this.subject();
         buffer = Buffer.create({ content });
       });
 
@@ -105,15 +106,15 @@ describe('Buffer', () => {
 
   describe('clientErrors', () => {
     it("returns the object's validation errors", () => {
-      buffer.set('validations.attrs.attr', Ember.Object.create({ errors: [{ message: 'invalid' }] }));
-      buffer.get('validations.errors').pushObject(Ember.Object.create({ attribute: 'attr' }));
+      buffer.set('validations.attrs.attr', EmberObject.create({ errors: [{ message: 'invalid' }] }));
+      buffer.get('validations.errors').pushObject(EmberObject.create({ attribute: 'attr' }));
 
       expect(buffer.get('clientErrors.attr')).to.have.members(['invalid']);
     });
 
     it('does not contain attributes with empty error lists', () => {
-      buffer.set('validations.attrs.attr', Ember.Object.create({ errors: [] }));
-      buffer.get('validations.errors').pushObject(Ember.Object.create({ attribute: 'attr' }));
+      buffer.set('validations.attrs.attr', EmberObject.create({ errors: [] }));
+      buffer.get('validations.errors').pushObject(EmberObject.create({ attribute: 'attr' }));
 
       expect(buffer.get('clientErrors.attr')).to.be.undefined;
     });
@@ -138,21 +139,21 @@ describe('Buffer', () => {
     });
 
     describe('when the form object implements the "unsetApiErrors" method', () => {
-      Ember.A(['other', ['other1', 'other2']]).forEach((returnValue) => {
+      A(['other', ['other1', 'other2']]).forEach((returnValue) => {
         describe(`when the "unsetApiErrors" method returns ${returnValue}`, () => {
           it('adds errors returned from it to the apiErrorBlacklist', () => {
             buffer.unsetApiErrors = function() {
               return returnValue;
             };
             buffer.set('attr', 'test');
-            let expected = Ember.A(['attr']).pushObjects(Ember.makeArray(returnValue));
+            let expected = A(['attr']).pushObjects(makeArray(returnValue));
 
             expect(buffer.get('_apiErrorBlacklist')).to.have.members(expected);
           });
         });
       });
 
-      Ember.A([[], null, undefined]).forEach((returnValue) => {
+      A([[], null, undefined]).forEach((returnValue) => {
         describe(`when the "unsetApiErrors" method returns ${returnValue}`, () => {
           it('does not modify the apiErrorBlacklist', () => {
             buffer.unsetApiErrors = function() {
@@ -168,8 +169,8 @@ describe('Buffer', () => {
   });
 
   describe('when the content is a DS.Model', () => {
-    beforeEach(() => {
-      content = DS.Model.extend()._create();
+    beforeEach(function() {
+      content = this.subject();
       buffer = Buffer.create({ content });
     });
 
@@ -181,7 +182,7 @@ describe('Buffer', () => {
       it('clears the API errors blacklist', (done) => {
         content.trigger('becameInvalid');
 
-        Ember.run.next(() => {
+        run.next(() => {
           expect(buffer.get('_apiErrorBlacklist')).to.be.empty;
           done();
         });
@@ -196,7 +197,7 @@ describe('Buffer', () => {
       it('clears the API errors blacklist', (done) => {
         content.trigger('didCommit');
 
-        Ember.run.next(() => {
+        run.next(() => {
           expect(buffer.get('_apiErrorBlacklist')).to.be.empty;
           done();
         });
